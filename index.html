@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<meta name="theme-color" content="#0b0d12" />
+<title>働けイーロン</title>
+<style>
+  :root{
+    --bg:#090b10;
+    --panel:#121620;
+    --line:#2b3242;
+    --text:#f7f8fb;
+    --muted:#9aa3b5;
+    --accent:#ffffff;
+    --danger:#ff4d67;
+    --good:#68f0a4;
+    --warn:#ffd166;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+  body{touch-action:none}
+
+  .app{
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:12px 14px 8px;
+    z-index:5;
+  }
+
+  .brand{font-weight:900;letter-spacing:-.04em;font-size:clamp(20px,5vw,30px)}
+  .brand small{font-size:.42em;color:var(--muted);font-weight:700;letter-spacing:.03em;display:block;margin-top:-2px}
+  .hud{display:flex;gap:8px}
+  .pill{
+    min-width:68px;
+    background:#141923d9;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:7px 10px;
+    text-align:center;
+    backdrop-filter:blur(10px);
+  }
+  .pill b{display:block;font-size:16px;line-height:1}
+  .pill span{font-size:10px;color:var(--muted)}
+
+  #game{
+    position:relative;
+    flex:1;
+    min-height:0;
+    margin:0 10px 10px;
+    border:1px solid var(--line);
+    border-radius:22px;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 10%, #1f2635 0, transparent 38%),
+      linear-gradient(#0d1017,#080a0f);
+    box-shadow:inset 0 0 80px #0006;
+  }
+
+  #game::before{
+    content:"";
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(#ffffff08 1px,transparent 1px),
+      linear-gradient(90deg,#ffffff08 1px,transparent 1px);
+    background-size:28px 28px;
+    pointer-events:none;
+  }
+
+  .boss{
+    position:absolute;
+    left:50%;
+    bottom:116px;
+    transform:translateX(-50%);
+    width:72px;height:72px;
+    border-radius:50%;
+    display:grid;place-items:center;
+    font-size:40px;
+    background:linear-gradient(145deg,#f1f3f8,#aeb7c8);
+    color:#111;
+    border:4px solid #fff;
+    box-shadow:0 10px 28px #000a;
+    z-index:2;
+    user-select:none;
+  }
+  .boss::after{
+    content:"CEO";
+    position:absolute;bottom:-20px;
+    font-size:10px;font-weight:900;letter-spacing:.18em;color:#aab3c5;
+  }
+
+  #targets{
+    position:absolute;
+    left:8px;right:8px;bottom:8px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:7px;
+    z-index:3;
+  }
+  .target{
+    height:86px;
+    border:1px solid #3a4357;
+    border-radius:17px;
+    background:#151a25e8;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:4px;
+    font-size:11px;
+    font-weight:900;
+    color:#dfe4ed;
+    user-select:none;
+    transition:.12s transform,.12s background,.12s border-color;
+  }
+  .target .ico{font-size:24px}
+  .target.hot{transform:translateY(-5px) scale(1.03);background:#202838;border-color:#fff}
+
+  .task{
+    position:absolute;
+    width:min(42vw,155px);
+    min-height:58px;
+    border-radius:16px;
+    padding:9px 11px;
+    border:1px solid #3b465b;
+    background:linear-gradient(145deg,#1c2230,#111620);
+    box-shadow:0 10px 28px #0008;
+    user-select:none;
+    touch-action:none;
+    z-index:4;
+    cursor:grab;
+    will-change:transform,left,top;
+  }
+  .task:active{cursor:grabbing}
+  .task .row{display:flex;align-items:center;gap:8px}
+  .task .ico{font-size:24px}
+  .task strong{font-size:13px;line-height:1.15}
+  .task small{display:block;color:#9ea8bb;font-size:10px;margin-top:2px}
+  .task.sleep{
+    border-color:#7959ff;
+    background:linear-gradient(145deg,#34276e,#18122f);
+    box-shadow:0 0 28px #6d4cff66;
+    animation:pulse .7s infinite alternate;
+  }
+  @keyframes pulse{to{filter:brightness(1.35)}}
+
+  .toast{
+    position:absolute;
+    left:50%;top:46%;
+    transform:translate(-50%,-50%) scale(.9);
+    background:#0e121acc;
+    border:1px solid #ffffff26;
+    border-radius:999px;
+    padding:9px 14px;
+    font-size:14px;
+    font-weight:900;
+    pointer-events:none;
+    opacity:0;
+    z-index:8;
+    backdrop-filter:blur(10px);
+  }
+  .toast.show{animation:toast .55s ease}
+  @keyframes toast{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}
+    25%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    100%{opacity:0;transform:translate(-50%,-70%) scale(1.05)}
+  }
+
+  .overlay{
+    position:absolute;inset:0;
+    z-index:20;
+    display:grid;
+    place-items:center;
+    padding:20px;
+    background:#07090dcc;
+    backdrop-filter:blur(10px);
+  }
+  .card{
+    width:min(92vw,460px);
+    border:1px solid #30384a;
+    border-radius:26px;
+    padding:24px;
+    background:linear-gradient(145deg,#171c27,#0e1219);
+    box-shadow:0 24px 80px #000b;
+  }
+  .logo{
+    width:58px;height:58px;border-radius:18px;
+    display:grid;place-items:center;
+    background:#fff;color:#080a0d;
+    font-size:31px;
+    margin-bottom:14px;
+  }
+  h1{margin:0;font-size:clamp(32px,10vw,52px);letter-spacing:-.065em;line-height:.92}
+  .subtitle{margin:10px 0 17px;color:#a5aec0;font-size:14px;line-height:1.55}
+  .rules{
+    display:grid;
+    gap:8px;
+    margin:14px 0 18px;
+    font-size:12px;
+    color:#dce1ea;
+  }
+  .rule{padding:9px 11px;border-radius:13px;background:#ffffff08;border:1px solid #ffffff0d}
+  button{
+    appearance:none;border:0;
+    width:100%;
+    border-radius:16px;
+    background:#fff;color:#0a0c10;
+    padding:15px 18px;
+    font-size:16px;
+    font-weight:950;
+    cursor:pointer;
+  }
+  button:active{transform:scale(.985)}
+  .mini{font-size:10px;color:#737e93;margin-top:10px;text-align:center}
+
+  .dangerflash{animation:dangerflash .22s}
+  @keyframes dangerflash{50%{box-shadow:inset 0 0 120px #ff244b88}}
+
+  .goodflash{animation:goodflash .2s}
+  @keyframes goodflash{50%{box-shadow:inset 0 0 100px #4cff9a55}}
+
+  #combo{
+    position:absolute;right:12px;top:10px;
+    font-size:12px;color:#ffd166;font-weight:900;z-index:7;
+  }
+
+  @media (min-width:760px){
+    .app{max-width:760px;margin:0 auto}
+    #game{margin:0 14px 14px}
+    .target{height:92px;font-size:12px}
+    .boss{bottom:125px}
+  }
+
+  @media (max-height:650px){
+    .boss{bottom:98px;width:58px;height:58px;font-size:32px}
+    .target{height:72px}
+    #targets{gap:5px}
+    .task{min-height:50px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">働けイーロン<small>WORK HARDER, CEO.</small></div>
+    <div class="hud">
+      <div class="pill"><b id="score">0</b><span>SCORE</span></div>
+      <div class="pill"><b id="time">30.0</b><span>TIME</span></div>
+    </div>
+  </header>
+
+  <main id="game" aria-label="働けイーロン ゲームエリア">
+    <div id="combo"></div>
+    <div class="boss" aria-hidden="true">🧑‍💼</div>
+    <div id="targets">
+      <div class="target" data-type="space"><div class="ico">🚀</div>SPACE</div>
+      <div class="target" data-type="car"><div class="ico">🚗</div>TESLA</div>
+      <div class="target" data-type="x"><div class="ico">𝕏</div>X</div>
+      <div class="target" data-type="ai"><div class="ico">🤖</div>xAI</div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <div id="startOverlay" class="overlay">
+      <div class="card">
+        <div class="logo">⚡️</div>
+        <h1>働け<br>イーロン</h1>
+        <p class="subtitle">降ってくる仕事を正しい会社へ投げ込め。<br>ただし、<b>睡眠だけは絶対に許すな。</b></p>
+        <div class="rules">
+          <div class="rule">👉 仕事カードをドラッグして正しい箱へ</div>
+          <div class="rule">😴 「睡眠」はタップで叩き落とす</div>
+          <div class="rule">🔥 連続成功でコンボ。30秒耐えろ</div>
+        </div>
+        <button id="startBtn">労働開始</button>
+        <div class="mini">PC: マウス / スマホ: 指1本でOK</div>
+      </div>
+    </div>
+
+    <div id="endOverlay" class="overlay" style="display:none">
+      <div class="card">
+        <div class="logo" id="endIcon">💼</div>
+        <h1 id="endTitle">勤務終了</h1>
+        <p class="subtitle" id="endText"></p>
+        <div class="rules" id="stats"></div>
+        <button id="restartBtn">もう一度働かせる</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const game = document.getElementById('game');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const comboEl = document.getElementById('combo');
+  const toast = document.getElementById('toast');
+  const startOverlay = document.getElementById('startOverlay');
+  const endOverlay = document.getElementById('endOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const endTitle = document.getElementById('endTitle');
+  const endText = document.getElementById('endText');
+  const endIcon = document.getElementById('endIcon');
+  const stats = document.getElementById('stats');
+  const targets = [...document.querySelectorAll('.target')];
+
+  const TASKS = [
+    {type:'space', ico:'🚀', name:'ロケット打ち上げ', sub:'Space division'},
+    {type:'space', ico:'🛰️', name:'衛星を飛ばす', sub:'Orbital workload'},
+    {type:'car', ico:'🚗', name:'EVを量産', sub:'Tesla workload'},
+    {type:'car', ico:'🔋', name:'バッテリー増産', sub:'Factory workload'},
+    {type:'x', ico:'𝕏', name:'SNSを運営', sub:'Timeline workload'},
+    {type:'x', ico:'📣', name:'投稿をさばく', sub:'Social workload'},
+    {type:'ai', ico:'🤖', name:'AIを学習', sub:'xAI workload'},
+    {type:'ai', ico:'🧠', name:'モデルを改善', sub:'GPU workload'},
+  ];
+
+  let running = false;
+  let score = 0;
+  let combo = 0;
+  let bestCombo = 0;
+  let done = 0;
+  let misses = 0;
+  let elapsed = 0;
+  let duration = 30;
+  let lastFrame = 0;
+  let spawnAcc = 0;
+  let cards = [];
+  let sleepSpawned = 0;
+  let animationId = null;
+
+  function setToast(text){
+    toast.textContent = text;
+    toast.classList.remove('show');
+    void toast.offsetWidth;
+    toast.classList.add('show');
+  }
+
+  function flash(kind){
+    game.classList.remove('goodflash','dangerflash');
+    void game.offsetWidth;
+    game.classList.add(kind === 'good' ? 'goodflash' : 'dangerflash');
+  }
+
+  function reset(){
+    running = false;
+    cancelAnimationFrame(animationId);
+    cards.forEach(c => c.el.remove());
+    cards = [];
+    score = 0; combo = 0; bestCombo = 0; done = 0; misses = 0;
+    elapsed = 0; spawnAcc = 0; sleepSpawned = 0;
+    scoreEl.textContent = '0';
+    timeEl.textContent = duration.toFixed(1);
+    comboEl.textContent = '';
+  }
+
+  function start(){
+    reset();
+    startOverlay.style.display = 'none';
+    endOverlay.style.display = 'none';
+    running = true;
+    lastFrame = performance.now();
+    spawnCard();
+    animationId = requestAnimationFrame(loop);
+  }
+
+  function end(reason='time'){
+    if(!running) return;
+    running = false;
+    cancelAnimationFrame(animationId);
+    cards.forEach(c => c.el.remove());
+    cards = [];
+
+    let rank = '見習いCEO';
+    if(score >= 3500) rank = '火星級CEO';
+    else if(score >= 2500) rank = '超過勤務CEO';
+    else if(score >= 1500) rank = '模範的CEO';
+    else if(score >= 700) rank = '働くCEO';
+
+    if(reason === 'sleep'){
+      endIcon.textContent = '😴';
+      endTitle.textContent = '寝た。';
+      endText.innerHTML = 'CEOが睡眠を獲得しました。<br><b>労働は敗北です。</b>';
+    }else{
+      endIcon.textContent = score >= 2500 ? '🚀' : '💼';
+      endTitle.textContent = '勤務終了';
+      endText.innerHTML = `<b>${rank}</b><br>30秒間、よく働かせました。`;
+    }
+
+    stats.innerHTML = `
+      <div class="rule">スコア　<b>${score}</b></div>
+      <div class="rule">処理した仕事　<b>${done}件</b></div>
+      <div class="rule">最大コンボ　<b>${bestCombo}</b></div>
+      <div class="rule">取りこぼし　<b>${misses}件</b></div>
+    `;
+    endOverlay.style.display = 'grid';
+  }
+
+  function spawnCard(){
+    if(!running) return;
+
+    const rect = game.getBoundingClientRect();
+    const sleepChance = Math.min(0.08 + elapsed * 0.006, 0.22);
+    const isSleep = Math.random() < sleepChance;
+    const data = isSleep
+      ? {type:'sleep', ico:'😴', name:'睡眠', sub:'危険：休息'}
+      : TASKS[(Math.random()*TASKS.length)|0];
+
+    const el = document.createElement('div');
+    el.className = 'task' + (isSleep ? ' sleep' : '');
+    el.innerHTML = `<div class="row"><div class="ico">${data.ico}</div><div><strong>${data.name}</strong><small>${data.sub}</small></div></div>`;
+    game.appendChild(el);
+
+    const w = el.offsetWidth;
+    const left = 8 + Math.random() * Math.max(1, rect.width - w - 16);
+    const top = -70;
+    const speed = (75 + Math.random()*32) * (1 + elapsed/75);
+
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+
+    const card = {
+      el, type:data.type, x:left, y:top, speed,
+      dragging:false, pointerId:null,
+      offsetX:0, offsetY:0
+    };
+    cards.push(card);
+    bindCard(card);
+
+    if(isSleep) sleepSpawned++;
+  }
+
+  function bindCard(card){
+    const el = card.el;
+
+    el.addEventListener('pointerdown', e => {
+      if(!running) return;
+      e.preventDefault();
+
+      if(card.type === 'sleep'){
+        score += 80;
+        done++;
+        combo++;
+        bestCombo = Math.max(bestCombo, combo);
+        scoreEl.textContent = score;
+        comboEl.textContent = combo >= 2 ? `🔥 ${combo} COMBO` : '';
+        setToast('睡眠を却下 +80');
+        removeCard(card);
+        return;
+      }
+
+      card.dragging = true;
+      card.pointerId = e.pointerId;
+      el.setPointerCapture?.(e.pointerId);
+      const r = el.getBoundingClientRect();
+      card.offsetX = e.clientX - r.left;
+      card.offsetY = e.clientY - r.top;
+      el.style.zIndex = 10;
+    });
+
+    el.addEventListener('pointermove', e => {
+      if(!card.dragging || e.pointerId !== card.pointerId) return;
+      e.preventDefault();
+      const gr = game.getBoundingClientRect();
+      card.x = e.clientX - gr.left - card.offsetX;
+      card.y = e.clientY - gr.top - card.offsetY;
+      card.x = Math.max(0, Math.min(gr.width - el.offsetWidth, card.x));
+      card.y = Math.max(0, Math.min(gr.height - el.offsetHeight, card.y));
+      el.style.left = card.x + 'px';
+      el.style.top = card.y + 'px';
+      highlightTarget(e.clientX, e.clientY);
+    });
+
+    const release = e => {
+      if(!card.dragging || e.pointerId !== card.pointerId) return;
+      card.dragging = false;
+      el.style.zIndex = 4;
+      targets.forEach(t => t.classList.remove('hot'));
+
+      const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.target');
+      if(hit){
+        resolveDrop(card, hit.dataset.type);
+      }
+    };
+
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+  }
+
+  function highlightTarget(clientX, clientY){
+    targets.forEach(t => {
+      const r = t.getBoundingClientRect();
+      const hit = clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+      t.classList.toggle('hot', hit);
+    });
+  }
+
+  function resolveDrop(card, targetType){
+    if(card.type === targetType){
+      combo++;
+      bestCombo = Math.max(bestCombo, combo);
+      const gain = 100 + Math.min(combo,20)*12;
+      score += gain;
+      done++;
+      setToast(`正解 +${gain}`);
+      flash('good');
+      comboEl.textContent = combo >= 2 ? `🔥 ${combo} COMBO` : '';
+      scoreEl.textContent = score;
+      removeCard(card);
+    }else{
+      combo = 0;
+      score = Math.max(0, score - 100);
+      comboEl.textContent = '';
+      scoreEl.textContent = score;
+      setToast('配属ミス -100');
+      flash('bad');
+    }
+  }
+
+  function removeCard(card){
+    const i = cards.indexOf(card);
+    if(i >= 0) cards.splice(i,1);
+    card.el.remove();
+  }
+
+  function loop(now){
+    if(!running) return;
+    const dt = Math.min((now-lastFrame)/1000, 0.04);
+    lastFrame = now;
+    elapsed += dt;
+    spawnAcc += dt;
+
+    const remain = Math.max(0, duration-elapsed);
+    timeEl.textContent = remain.toFixed(1);
+
+    const interval = Math.max(0.42, 1.05 - elapsed*0.018);
+    if(spawnAcc >= interval){
+      spawnAcc = 0;
+      spawnCard();
+    }
+
+    const gr = game.getBoundingClientRect();
+    const dangerY = gr.height - 102;
+
+    [...cards].forEach(card => {
+      if(card.dragging) return;
+      card.y += card.speed * dt;
+      card.el.style.top = card.y + 'px';
+
+      if(card.y + card.el.offsetHeight >= dangerY){
+        if(card.type === 'sleep'){
+          flash('bad');
+          end('sleep');
+          return;
+        }
+        misses++;
+        combo = 0;
+        comboEl.textContent = '';
+        score = Math.max(0, score - 60);
+        scoreEl.textContent = score;
+        setToast('仕事を落とした -60');
+        flash('bad');
+        removeCard(card);
+      }
+    });
+
+    if(!running) return;
+    if(elapsed >= duration){
+      end('time');
+      return;
+    }
+    animationId = requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', start);
+  restartBtn.addEventListener('click', start);
+
+  // iOSのピンチ/ダブルタップ由来の誤操作を軽減
+  document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+})();
+</script>
+</body>
+</html>
